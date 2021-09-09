@@ -1,0 +1,723 @@
+What is node.js?
+   Node.js® is a JavaScript runtime built on Chrome's V8 JavaScript engine.
+
+Java Script Runtime:
+
+ -It is Program written in either c / c++ to execute javascript assembly instructions.
+
+Types of Runtime:
+
+1.Embeded runtime
+  The runtime embeded into another program/runtime.
+Tomcat - HttpServer + jvm
+Javascript Runtime : inside every browser
+
+2.Standalone runtime
+jvm
+clr
+javascript Engine - v8
+
+Google distributed v8 in two mode, one is embeded -chrome,standlone mode.
+
+Google only first distribtued javascript engine(v8) code in open source.
+
+Node.js was created based on v8 javascript engine for building non blocking , async 
+io applications - network applications in javascript language.
+..........................................................................................
+What is blocking?
+ The code which waits for result during execution.
+ The next line of code will not execute,before completion of previous code.
+
+What is Non blocking && Async ?
+ The code which takes time (i dont know how much time it will take)
+ but i dont want to wait until the previouse code complete.
+
+Which can block? which code takes longer time?
+
+-ANY IO 
+   -INPUT/OUTPUT -  
+  if you are reading / writing data  from and into network socket
+  if you are reading/writing data from the datasources - db
+  if you are reading/writing data from and into the file system.
+
+-cpu intensive taks
+  -running for/while loop infintly or long times. 1 to 100000000
+  -graphics apps which process images/vidoes
+
+How to design non blocking io Architectures?
+
+
+File Descriptors:
+ - it is ds, array, having values 
+Integer value	Name	<unistd.h> symbolic constant[1]	<stdio.h> file stream[2]
+0	Standard input	STDIN_FILENO	stdin
+1	Standard output	STDOUT_FILENO	stdout
+2	Standard error	STDERR_FILENO	stderr
+
+-Every process when it is created, a new file descriptor table is initalized with three values
+ -stdin-keyword
+ -stdout-terminal
+ -stderr-terminal
+
+if you are going to do io operation
+ -reading a text file from c:\drive(hardisk)
+you can take any language
+java
+
+Types of api:
+
+1.highlevel api -  used by language
+2.system calls- sys calls -lowlevel api -  used by os
+
+console.log() -high level api
+fsstream.read() -high level api
+
+Process:
+  Container/Runtime for applications.
+  Every Process has its own memory 
+  Every Process has its own processid.
+ On process we can run our app code.
+
+Modern Processes has sub processs-Threads
+
+
+How Web works? How web server works?
+
+1000 requests (io request)---------- 1000 threads will be created
+
+                              "Thread Per Request Model"
+
+
+C10k - problem - 2000
+ -  a web server should handle 10 connections in a time.
+
+How to utilize the existing hardware resources - memory cpu with max concurrency.
+
+10 k - hardware
+15 k  -hardware
+
+single hardware -15k
+
+in order to achive c10k problem solution?
+
+-Which is taking more resource? 
+   Thread
+
+How to minimize no of threads, how to avoid memory allocations and ctx switch.
+
+
+blocking api in linux:
+-read,receive,open.....
+
+Non blocking api
+In 2000, linux operating system added the first non blocking api
+
+select  +Read =  first non blocking arch
+
+poll api : emitting events - Event driven architecture
+
+
+Pull model : The process should fire api(pulling) data from the kernal
+Push/poll : The kernal push the data to the process when data is ready via events
+
+Poll had some issues, 
+
+EPoll:
+.....
+ -framework for watching fs entries, emits events and data to the process.
+
+Node internal Architecture?
+
+ - Node is the most successful project which implemented "c10k" problom solution architecture.
+
+Node.js implements non blocking arch with help of javascript and libuv.
+
+
+libuv:
+ The c platform abstraction lib.
+libuv is a multi-platform support library with a focus on asynchronous I/O.
+.............................................................................................
+
+According the libuv
+
+.Full-featured event loop backed by epoll, kqueue, IOCP, event ports
+
+All network io operations are performed by "a Thread" called event loop thread.
+
+There is only one Event loop thread per node process.
+
+.............................................................................................
+					Threading in node process
+
+There are two types of threads.
+
+1.Event loop thread
+   only one event loop thread or main loop thread, main thread, event thread.
+
+ Event loop thread handles "Non blocking network io(socket) calls- tcp,http,udp,pipes,timers
+
+2.Worker pool(more - n no of threads) thread /Workers threads - Thread Pools
+  Libuv initalizes the n- of let say 10 threads in advance when node process is being started.
+
+
+Work Pool Thread: 
+  -It is used per task thread - request per thread model- dedidcated thread.
+
+"Async vs non blocking"
+
+  -Non blocking means the current thread not to be blocked for io operation.
+
+  -Async means
+       - the current thread not to be blocked for io operations.
+       - schduling the task in different thread of execution , later you can collect result          via events,callbacks,futures
+
+Work pool thread can be used
+
+-For non blocking file system io operation
+
+For async fs api, thread pool thread is created used but it wont be blocked but rather other 
+for sync fs api is created used but it cant be released until the fs operation is completed
+............................................................................................
+		How to implement non blocking async operations are implemented
+.............................................................................................
+
+How to process events? styles of writing async programmings?
+
+1.callback style
+2.Promise style
+3.async...await
+
+
+ callback ;
+  it is function used to handle async results.
+  it is registered when the call is made
+  it is invoked once the event is arrived to the node process
+  when callback functions runs the current thread to be blocked to return data.
+
+How to implement callbacks
+
+
+1.you need node high level async api - io apis, timers
+2.you need higher order function - function passed parameter to another function.
+
+How epoll works in the kernal side similarly we have same simulation in the node process level.
+
+Even loop thread cycles.
+
+-Thread is created running inside an infite loop;
+
+  for(;;){ 
+    ┌───────────────────────────┐
+┌─>│           timers          │   --- attach callback functions to execute that phase
+│  └─────────────┬─────────────┘
+│  ┌─────────────┴─────────────┐
+│  │     pending callbacks     │
+│  └─────────────┬─────────────┘
+│  ┌─────────────┴─────────────┐
+│  │       idle, prepare       │
+│  └─────────────┬─────────────┘      ┌───────────────┐
+│  ┌─────────────┴─────────────┐      │   incoming:   │
+│  │           poll            │<─────┤  connections, │
+│  └─────────────┬─────────────┘      │   data, etc.  │
+│  ┌─────────────┴─────────────┐      └───────────────┘
+│  │           check           │
+│  └─────────────┬─────────────┘
+│  ┌─────────────┴─────────────┐
+└──┤      close callbacks      │
+   └───────────────────────────┘
+
+  }
+
+timers: this phase executes callbacks scheduled by setTimeout() and setInterval().
+pending callbacks: executes I/O callbacks deferred to the next loop iteration.
+idle, prepare: only used internally.
+poll: retrieve new I/O events; execute I/O related callbacks (almost all with the exception of close callbacks, the ones scheduled by timers, and setImmediate()); node will block here when appropriate.
+check: setImmediate() callbacks are invoked here.
+close callbacks: some close callbacks, e.g. socket.on('close', ...).
+
+
+//non blocking implementation : timers 
+
+// timers,network io code
+
+function delay(action){
+   //non blocking high level api
+   setTimeout(action,5000);
+}
+function blockMe(message){
+    console.log(message)
+}
+function tick(callback){
+    setInterval(callback,1000)
+}
+function justRunAsync(){
+    setImmediate(function(){
+        console.log('runs in the check phase')
+    })
+}
+blockMe('start')
+justRunAsync();
+delay(function(){
+    console.log('got it')
+});
+tick(function(){
+    console.log('ping')
+})
+blockMe('end')
+............................................................................................
+
+Arrow functions:
+//arrow functions are simple way of writing anonmous functions
+
+//es 5 style
+let hello = function () {
+    console.log('hello');
+};
+hello();
+//es 6 style - arrow
+hello = () => {
+    console.log('hello');
+};
+hello()
+//if there is single line of body , you can remove {}
+hello = () => console.log('hello');
+hello();
+//args and parameters
+let add = function (a, b) {
+    return a + b;
+};
+console.log(add(10, 10));
+
+add = (a, b) => {
+    return a + b;
+};
+console.log(add(10, 10));
+//function returns only,remove {} and return statement 
+add = (a, b) => a + b;
+console.log(add(10, 10));
+
+add = (a = 1, b = 1) => a + b;
+console.log(add());
+console.log(add(10, 10));
+
+//single param,no default , return the same
+let message = name => name;
+console.log(message('subramanian'))
+//higher order function and arrow: function as parameter
+
+let login = function (username, password, success, failure) {
+    if (username === 'admin' && password === 'admin') {
+        success('login success')
+    } else {
+        failure('login failed')
+    }
+}
+login('admin', 'admin', function (status) {
+    console.log(status)
+}, function (err) {
+    console.log(err);
+})
+login = (username, password, success, failure) => {
+    if (username === 'admin' && password === 'admin') {
+        success('login success')
+    } else {
+        failure('login failed')
+    }
+}
+login('admin', 'admin', status => console.log(status), err => console.log(err));
+login('ff', 'xxx', status => console.log(status), err => console.log(err));
+
+
+.............................................................................................
+
+Callback is very core, without which you cant write non blocking apps.
+
+.............................................................................................
+			 Callback Chaining -Async composition-Callback Nesting
+............................................................................................
+
+-the out put of one callback(async result) will be input to another callback
+  
+    -api which returns data - async
+       --based on api you need to call another api
+
+
+
+//callback ; the out put of one callback will be input to another one.
+
+//resolve => success
+//reject => failure
+
+let getUser = (resolve, reject) => {
+    let user = {
+        name: 'admin',
+        password: 'admin'
+    }
+    //check user present
+    if (user) {
+        //async code
+        setTimeout(resolve, 1000, user);
+    } else {
+        setTimeout(reject, 1000, { message: 'User not found not' });
+    }
+
+};
+
+let login = (user, resolve, reject) => {
+    //check  valid user
+    if (user.name === 'admin' && user.password === 'admin') {
+        //async code
+        setTimeout(resolve, 1000, 'login success');
+    } else {
+        setTimeout(reject, 1000, 'login failed');
+    }
+
+};
+let showDashboard = (status, resolve, reject) => {
+    //check  valid user
+    if (status === 'login success') {
+        //async code
+        setTimeout(resolve, 1000, 'You are admin');
+    } else {
+        setTimeout(reject, 1000, 'You are guest');
+    }
+
+};
+
+getUser(user => {
+    console.log(user)
+    login(user, status => {
+        console.log(status)
+        showDashboard(status, apage => { 
+            console.log(apage)
+        }, gpage => { 
+            console.log(gpage)
+        });
+    }, error => {
+        console.log(error);
+    });
+}, error => {
+    console.log(error);
+});
+
+
+fs.readdir(source, function (err, files) {
+  if (err) {
+    console.log('Error finding files: ' + err)
+  } else {
+    files.forEach(function (filename, fileIndex) {
+      console.log(filename)
+      gm(source + filename).size(function (err, values) {
+        if (err) {
+          console.log('Error identifying file size: ' + err)
+        } else {
+          console.log(filename + ' : ' + values)
+          aspect = (values.width / values.height)
+          widths.forEach(function (width, widthIndex) {
+            height = Math.round(width / aspect)
+            console.log('resizing ' + filename + 'to ' + height + 'x' + height)
+            this.resize(width, height).write(dest + 'w' + width + '_' + filename, function(err) {
+              if (err) console.log('Error writing file: ' + err)
+            })
+          }.bind(this))
+        }
+      })
+    })
+  }
+})
+
+
+Questions:
+
+1.Whether this code is able to understand quickly
+2.Whether this code is able to debug
+3.Whehter this code is scalable?
+4.whether this code is maintaiable?
+
+No! -------Callback Hell.
+............................................................................................
+Callback Hell:
+
+ -It is not bug or error in code
+ -It is way of writing callback based program
+ -Callback based non blocking programming hard to understand,maintain,debug,scale Which 
+  called as "Callback Hell".
+
+How to write better async/non blocking code without callbacks?
+
+-Generally without callbacks not possible to write async/non blocking code.
+-Rather we can abstract complexity of writting callbacks.
+
+
+In 2005, JQUERY team started with working complex callback patterns, they found callback hell problem.
+
+They proposed a  Design pattern to write better callback programming(Async) programming.
+
+  "Promise".
+
+Promise is design pattern which hides complexity of callback patterns
+
+
+Since Promise is design pattern, many people have implemented Promise design pattern.
+
+1.JQuery -first promise implementation
+2.many libs and frameworks
+
+...........................................................................................
+
+...........................................................................................
+
+In order standarize , ECMA committe decided to include Promise Design pattern at language level .(ES 6)
+2012 E6 Committe introduced promise design pattern  as  "Promise" Object  in javascript.
+
+Promises and non blocking,async and callback hell issues:
+.........................................................
+
+1.Promise by deafult is Async. Which implements timer api with 0 ms .
+
+Promise can be used with any async callback based  implementations.
+
+Objective:
+
+ To remove callbacks in async/non blocking code. write cleaner async programming.
+ To remove complex callback chaining code.
+
+Promise Implemenation:
+
+1. Create Promise Object from Promise contructor
+2. Create Promise object from factory apis 
+
+Promise object methods:
+1.then - success
+2.catch - errors
+3.finally - clean up
+factory api to create Promise object
+4.resolve
+5.reject
+.......................................
+6.all
+7.race
+
+
+
+
+function blockMe(message) {
+    console.log(message)
+}
+let getSuccessPromise = () => {
+    return Promise.resolve('success'); //retuns promise object
+};
+
+let getFailurePromise = () => {
+    return Promise.reject('error'); //retuns promise object
+};
+blockMe('start')
+getSuccessPromise()
+    .then(res => console.log(res));
+
+getFailurePromise()
+    .catch(res => console.log(res));
+
+//error and failure
+let login = (username = 'admin', password = 'admin') => {
+    if (username === 'admin' && password === 'admin') {
+        return Promise.resolve('login success')
+    } else {
+        return Promise.reject('login failed')
+    }
+};
+login()
+    .then(res => console.log(res))
+    .catch(res => console.log(res));
+blockMe('end')
+..........................................................................................
+
+//Promise constructor ; when you are converting an existing callback apis into promise style.
+
+// function delay(callback) {
+//     setTimeout(callback, 5000, "hello")
+// }
+// delay((message) => console.log(message))
+
+
+function delay() {
+    return new Promise((resolve, reject) => {
+        setTimeout(resolve, 5000, "hello")
+    })
+
+}
+delay().then(res=>console.log(res))
+
+
+
+let getUser = () => {
+    console.log('user is called');
+    return new Promise((resolve, reject) => {
+        let user = {
+            name: 'admin',
+            password: 'admin'
+        }
+        //check user present
+        if (user) {
+            //async code
+            setTimeout(resolve, 1000, user);
+        } else {
+            setTimeout(reject, 1000, { message: 'User not found not' });
+        }
+    })
+};
+
+let login = user => {
+    console.log('login is called')
+    return new Promise((resolve, reject) => {
+        //check  valid user
+        if (user.name === 'admin' && user.password === 'admin') {
+            //async code
+            setTimeout(resolve, 1000, 'login success');
+        } else {
+            setTimeout(reject, 1000, 'login failed');
+        }
+    })
+
+
+};
+let showDashboard = status => {
+    console.log('showdashboard is called')
+    return new Promise((resolve, reject) => {
+        //check  valid user
+        if (status === 'login success') {
+            //async code
+            setTimeout(resolve, 1000, 'You are admin');
+        } else {
+            setTimeout(reject, 1000, 'You are guest');
+        }
+    });
+
+};
+
+// getUser(user => {
+//     console.log(user)
+//     login(user, status => {
+//         console.log(status)
+//         showDashboard(status, apage => { 
+//             console.log(apage)
+//         }, gpage => { 
+//             console.log(gpage)
+//         });
+//     }, error => {
+//         console.log(error);
+//     });
+// }, error => {
+//     console.log(error);
+// });
+
+//promise chaining
+// getUser().then(user => {
+//     console.log('user is called');
+//     login(user).then(status => {
+//         console.log('login is called')
+//         showDashboard(status)
+//             .then(page => console.log('showdashboard is called'))
+//             .catch(error => console.log(errror));
+//     }).catch(err => {
+//         console.log(err);
+//     })
+// }).catch(err => {
+//     console.log(err);
+// })
+//v2
+// getUser()
+//     .then(user => {
+//         return login(user)
+//     })
+//     .then(status => {
+//         return showDashboard(status)
+//     })
+//     .catch(error => console.log(error));
+
+getUser()
+    .then(user => login(user))
+    .then(status => showDashboard(status))
+    .catch(error => console.log(error));
+
+
+//////////////////////////////////////////////////////////////////////////////////////////
+
+Promise Hell:
+
+ In large code base, you can see many "thenables", how to reduce thenables.
+
+ES 7 introduced even simple keywords , looks like sync programm/sequencial call.
+"Sync style of async programm"
+
+"async function and await keyword.
+
+
+let getUser = () => {
+    console.log('user is called');
+    return new Promise((resolve, reject) => {
+        let user = {
+            name: 'admin',
+            password: 'admin'
+        }
+        //check user present
+        if (user) {
+            //async code
+            setTimeout(resolve, 1000, user);
+        } else {
+            setTimeout(reject, 1000, { message: 'User not found not' });
+        }
+    })
+};
+
+let login = user => {
+    console.log('login is called')
+    return new Promise((resolve, reject) => {
+        //check  valid user
+        if (user.name === 'admin' && user.password === 'admin') {
+            //async code
+            setTimeout(resolve, 1000, 'login success');
+        } else {
+            setTimeout(reject, 1000, 'login failed');
+        }
+    })
+
+
+};
+let showDashboard = status => {
+    console.log('showdashboard is called')
+    return new Promise((resolve, reject) => {
+        //check  valid user
+        if (status === 'login success') {
+            //async code
+            setTimeout(resolve, 1000, 'You are admin');
+        } else {
+            setTimeout(reject, 1000, 'You are guest');
+        }
+    });
+
+};
+
+
+// getUser()
+//     .then(user => login(user))
+//     .then(status => showDashboard(status))
+//     .catch(error => console.log(error));
+
+// async function main(){
+
+// }
+// main();
+let main = async () => {
+    try {
+        let user = await getUser()
+        let status = await login(user);
+        let page = await showDashboard(status);
+        console.log(user, status, page);
+    }
+    catch (err) {
+        console.log(err);
+    }
+};
+main()
+
