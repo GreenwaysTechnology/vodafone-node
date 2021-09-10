@@ -720,4 +720,507 @@ let main = async () => {
     }
 };
 main()
+.............................................................................................
+				 Modularity
+..............................................................................................
 
+Modularity:
+..........
+
+In java Modularity , is presented via "Packages"
+
+Package organize the code  logically.
+
+Customer.java
+
+package com.ibm.cms
+
+public class Customer{}
+
+Java organizes code folders and files Physically.
+
+d:/javaapps/src/
+    com/ibm/cms/Customer.java
+
+
+What about javascript Modularity?
+
+ Javascript is file based modularity physically
+ but logically there is no such modularity at language level.
+
+collection of variable declarations and function.
+
+Once js started growing in large scale, dev struck to organize code.
+
+2000, Smart developers started thinking about how to modualrize js code.
+ 
+
+Module design patterns came.
+
+1.Namespace design pattern : 2000 : jquery
+2.AMD -Async Module Defintion : dojo
+---------------------------------------------------------
+3.CJS - Common JS =  namespace + amd
+4.ES 6 Module design pattern  = amd + cjs
+------------------------------------------------------------
+5.System = AMD = CJS + ES 6
+6.UMD = NAMESPACE + AMD + CJS = ES 6
+
+
+
+CJS ; implemented inside node js. node supports commonjs by default.
+
+I can organize the code , based on these patterns, but what about runtimes?
+  js runtime never suppport these patterns directly then each design pattern is lib.
+
+ Loaders : it is simple js lib to help link and load js files.
+
+////////////////////////////////////////////////////////////////////////////////////////////
+
+lets start cjs first;
+......................
+
+cjs is built in node js.
+node supports cjs in built. no separate loader or linker is required
+but if you run cjs code on browsers , we need loaders.
+
+
+How to implement cjs in node? How to share code across the files and how to link files
+
+
+keywords
+
+-require('./folder/fileName')
+  to link files
+-exports
+   -used to share code in form of object
+   -code is packed inside object and shared that object
+-module.exports
+   -used to share code as it is.
+
+
+mylib.js
+exports.name = 'Subramanian';
+exports.city = 'coimbatore';
+exports.state = 'Tamil Nadu'
+exports.salary = 1000
+exports.status = true;
+exports.calculate = () => 1000
+exports.skills = ['javascript', 'nodejs']
+exports.location = {
+    lat: 18889.899,
+    lng: 908766
+}
+
+
+class TodoService {
+    findAll() {
+        return 'Todoservice';
+    }
+    //callback api
+    // findAll(callback) {
+    //     setTimeout(callback,1000,'todos')
+    // }
+    findAll() {
+        return new Promise((resolve, reject) => {
+            setTimeout(resolve, 1000, 'todos')
+        })
+    }
+}
+module.exports = TodoService
+
+const info = require('./mylibe')
+const { name } = require('./mylibe')
+const TodoService = require('./todo.service')
+console.log(info, name);
+
+let service = new TodoService();
+// console.log(service.findAll());
+// service.findAll(todos=>console.log(todos))
+const main = async () => {
+    try {
+        const todos = await service.findAll();
+        console.log(todos);
+    }
+    catch (err) {
+
+    }
+
+}
+main();
+............................................................................................
+
+Types of modules
+
+1.node built in modules
+
+............................................................................................
+..............................................................................................					  IO 
+                 Async io and Sync IO - Nonblocking IO / Blocking IO
+..............................................................................................
+Running code inside worker poll thread
+
+const fs = require('fs')
+
+
+function blockMe(message){
+  console.log(message);
+}
+
+const filePath = './src/assets/info.txt'
+const fileOptions = {
+    encoding:'utf-8'
+}
+
+blockMe('start reading')
+//async/non blocking  file api :
+fs.readFile(filePath, fileOptions, (err, data) => {
+    if (err) {
+        throw err;
+    }
+    console.log(data);
+})
+blockMe('start ending')
+.............................................................................................
+Running code inside worker poll thread
+
+const fs = require('fs')
+
+function blockMe(message) {
+    console.log(message);
+}
+
+const filePath = './src/assets/info.txt'
+const fileOptions = {
+    encoding: 'utf-8'
+}
+
+blockMe('start reading')
+//async/non blocking  file api :
+const fileContent = fs.readFileSync(filePath, fileOptions)
+console.log(fileContent)
+blockMe('start ending')
+
+........................................................................................
+Think : what is default size of the worker pool thread? - 4
+
+if you want to increase no of worker pool threads, that can increased via env variable
+
+export UV_THREADPOOL_SIZE=15
+
+Performance Tips:
+   "Dont over use Workerpoll threads"
+      -which eats memory
+      -cpu need to do ctx switch-cpu overhead.
+.............................................................................................
+ 
+   From the event loop, dont call blocking apis : Dont block Event loop thread 
+                       Gloden Rule : Dont block event loop thread
+.......................................................................................
+
+Event Loop thread can be blocked
+
+-blocking io apis
+-CPU intensive apis
+   -crypto module  when it computes long hash values, which takes lot of cpu time
+   -zip compression algorthim may block
+
+
+
+eg:
+const fs = require('fs')
+
+
+function blockMe(message){
+  console.log(message);
+}
+
+const filePath = './src/assets/info.txt'
+const fileOptions = {
+    encoding:'utf-8'
+}
+
+blockMe('start reading')
+function sleep(ms){
+    const time =  Date.now() + ms;
+    while(Date.now() < time);
+}
+//async/non blocking  file api :
+fs.readFile(filePath, fileOptions, (err, data) => {
+    if (err) {
+        throw err;
+    }
+    sleep(10000)
+    console.log(data);
+})
+
+blockMe('start ending')
+..............................................................................................
+					File io 
+
+1.blocking file io
+
+2.non blocking file io
+  -non streaming file io
+       -the file content is loaded into node process memory first , then will be given to 
+        caller
+        -incase it is in network env,then more files are loaded into memory, then there will not be memory,so the process might crash.
+
+  -streaming file io  
+     sending data over io channel chunk by chunk
+   
+Types of Streams:
+
+1.Readable Stream : input
+2.Writeable stream : output
+3.Duplex stream : read + write
+
+
+Node has lot of built in stream apis
+....................................
+
+Built in readable Streams:
+
+-HTTP responses, on the client
+-HTTP requests, on the server
+-fs read streams
+-zlib streams
+-crypto streams
+-TCP sockets
+-child process stdout and stderr
+-process.stdin
+
+Writable Streams:
+
+-HTTP requests, on the client
+-HTTP responses, on the server
+-fs write streams
+-zlib streams
+-crypto streams
+-TCP sockets
+-child process stdin
+-process.stdout, process.stderr
+
+
+All streaming apis are powered with events
+node io streams has built in events.
+events are emitted by node.
+Our programs are listeners
+
+..........................................................................................					Streaming io is other wise called "evented io"
+...........................................................................................
+
+Common events in all io
+.........................
+
+
+1.data event:
+ which is emitted by node, for each chunk.
+
+2.close event:
+  The 'close' event is emitted when the stream and any of its underlying resources (a file descriptor, for example) have been closed.
+
+3.end event:
+ The 'end' event is emitted when there is no more data to be consumed from the stream.
+
+3.Event: 'error'
+ The 'error' event may be emitted by a Readable implementation at any time
+Typically, this may occur if the underlying stream is unable to generate data due to an underlying internal failure, or when a stream implementation attempts to push an invalid chunk of data.
+.............................................................................................
+				Performance tuning in io apis
+
+
+Are you reading/writin files in network env?
+Is it big size file?
+
+Yes!
+
+Dont use non streaming apis
+ fs.readFile()
+
+Use streaming apis?
+ const fs = require('fs');
+const path = require('path');
+/**
+ * What is __filename and __dirname?
+ *   These are node global variables
+ * 
+ * Events: 
+ *   listener : our program
+ *    stream.on('nameoftheevent',callback)
+ *   publisher : kernal fd table - will emit events when ever data /error/complete event is triggered.
+ * 
+ */
+
+const fileName = path.join(__dirname, 'assets/big.file');
+const config = {
+    encoding: 'UTF-8'
+}
+const inputStream = fs.createReadStream(fileName, config);
+//data event is emitted by os for each chunk of data
+let data = ''
+inputStream.on('data', chunk=> {
+    console.log(`Received ${chunk.length} bytes of data.`)
+    data += chunk;
+})
+
+//end event is called , no more chunk of data is availble.
+inputStream.on('end', () => {
+    console.log('There will be no more data to read!');
+    //console.log(data);
+})
+
+//error event: for error handling
+inputStream.on('error', err => {
+    console.log(`Some thing went wrong! ${err}`)
+});
+..............................................................................................
+					Networking IO
+..............................................................................................
+
+All netorking io operations are handled by "event loop thread".
+
+Networking io apis/modules
+
+1.http
+2.tcp
+3.udp
+
+All networking modules are by default streamed io/evented io.
+
+const http = require('http');
+
+const server = http.createServer((req, res) => {
+    //io operation : write hello into socket outputstream
+    res.end('hello')
+})
+
+server.listen(3000, () => {
+    console.log('Http server is up and running')
+});
+
+What if i want to build the enterprise applications?
+  -Framework
+
+Express.js
+restify
+loopback
+hapi
+..............................................................................................
+					Express.js
+..............................................................................................
+
+Express.js abstraction on node core http module.
+
+Express provides
+
+-abstraction on http methods -  GET,POST,DELETE,PUT
+-abstraction on http urls - /api /api/todos
+-middlewares - extra logicas
+-routers - which isloate domain models
+.............................................................................................
+				    Performance 
+............................................................................................
+What is perfomance measuring?
+ Diagnose performance issues in application, in runtime components -v8,libuv,external systems
+like databases,messaging middlewares.
+
+What are symptoms to affect application peformance?
+
+1.CPU usage
+2.Blocking garbage collections
+3.frequent event loop delay
+4.blocking calls may block event loop thread or worker pool threads
+5.IO issues - streaming , non streaming io issues
+
+
+
+Use case : How to Block the event loop thread, how to identify the problem?
+
+Code:
+'use strict'
+
+const express = require('express');
+const app = express();
+
+function sleep(ms) {
+    const timer = Date.now() + ms
+    while (Date.now() < timer);
+}
+
+app.get('/', (req, res, next) => {
+    //block the event loop thread.
+    sleep(30)
+    res.send({})
+    next()
+})
+
+app.listen(3000)
+.............................................................................................
+		Clinic.js - Simple But high expressive tool  Diagnose 
+.............................................................................................
+
+Setup :
+ Install clinic tool.
+
+Requirement
+Node version > 8.11.
+
+1.npm i clinic -g 
+
+
+2.npm i autocannon -g
+
+Clinic sub commands
+
+1.doctor
+2.flame
+3.bubbleprof
+
+
+Blocking Event loop:
+
+'use strict'
+
+const express = require('express');
+const app = express();
+
+function sleep(ms) {
+    const timer = Date.now() + ms
+    while (Date.now() < timer);
+}
+
+app.get('/', (req, res, next) => {
+    //block the event loop thread.
+    sleep(30)
+    res.send({})
+    next()
+})
+
+app.listen(3000)
+.............................................................................................
+
+How to test blocking event loop?
+
+tunningapp>clinic doctor --autocannon [/] -- node src/sloweventloop
+
+
+You can see the report
+ -Recommendations - follow the recommendation for next activity.
+
+
+FlameGraph:
+
+Each block represents the time spent executing calls to a function.
+
+"The wider the block, the more time was spent"
+
+Blocks sit on the function that called them, so the stack below each block shows its stack trace.
+
+Double clicking on a block will expand it and its children.
+
+...........................
+A hot function
+This is a "hot" function - a lot of time was spent at the top of the stack, running the code inside this function. The brighter the colour on the exposed top of a block, the "hotter" it is compared to the rest of the profile.
+
+This might signify a problem: for example, it might be a slow function that can be optimised, or that is called very many times by functions below it
