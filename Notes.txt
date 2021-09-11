@@ -1457,7 +1457,230 @@ How to identify memory leaks? Which code leaks memory? How to dignosis memory le
   
 https://v8.dev/blog/trash-talk
 https://nodesource.com/blog/memory-leaks-demystified
+..............................................................................................
+
+Steps:
+
+1.code
+const http = require('http')
+
+const leak = []
+
+function requestListener(req, res) {
+
+  if (req.url === '/now') {
+    let resp = JSON.stringify({ now: new Date() })
+    leak.push(JSON.parse(resp))
+    res.writeHead(200, { 'Content-Type': 'application/json' })
+    res.write(resp)
+    res.end()
+  } else if (req.url === '/getSushi') {
+    function importantMath() {
+      let endTime = Date.now() + (5 * 1000);
+      while (Date.now() < endTime) {
+        Math.random();
+      }
+    }
+
+    function theSushiTable() {
+      return new Promise(resolve => {
+        resolve('🍣');
+      });
+    }
+
+    async function getSushi() {
+      let sushi = await theSushiTable();
+      res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' })
+      res.write(`Enjoy! ${sushi}`);
+      res.end()
+    }
+
+    getSushi()
+    importantMath()
+  } else {
+    res.end('Invalid request')
+  }
+}
+
+const server = http.createServer(requestListener)
+server.listen(process.env.PORT || 3000)
+
+2. start the server --inspect 
+node  --inspect mymem.js
+
+3.open chrome dev tool ---> chrome://inspect
+
+https://nodesource.com/blog/memory-leaks-demystified
+..............................................................................................			 Best Production Practices to improve performance of node applications
+.............................................................................................
+Production best practices: performance and reliability:
+
+
+Env where you can concentrate to improve performance
+
+1.Dev Env:
+
+1.Use gzip compression
+   When you send response - big responses,images.... you need to compress that
+
+var compression = require('compression')
+var express = require('express')
+var app = express()
+app.use(compression())
+
+Don’t use synchronous functions
+ blocking apis avoid as much as possible
+
+Do logging correctly
+  loggers are used to trace potential errors,root cause your application problems
+morgan,Node.js
+
+Handle exceptions properly
+  try...catch, promises
+  express global error middlewares
+
+Use clinic.js to identify event loop ,io,memory leaks... fix it.
+
+.............................................................................................
+				Production Env best pratices
+.............................................................................................
+
+Set NODE_ENV to “production”
+Ensure your app automatically restarts
+Run your app in a cluster
+Cache request results
+Use a load balancer
+Use a reverse proxy
+	
+
+Set NODE_ENV to “production”: Environment variables:
+....................................................
+Env variables are variables to scale your application in many context.
+
+for dynamic settings like database , usernames,passwords, urls, gloable variables has to be externalized.
+
+Node REPL
+
+process
+
+process.env:
+ it is variable holding global variables and its values inside an object
+
+process.env = {
+ variable:value
+}
+
+............................................................................................
+How to pass env variables to program?
+
+
+via command line
+
+in windows
+
+>SET PORT=8080
+>node myapp.js
+
+console.log(process.env.PORT)
+
+via .env file
+
+create .env file
+
+PORT=9090
+HOST=example.com
+
+how to env file?
+dotenv
+
+npm install dotenv
+
+myapp.js
+
+require('dotenv').config()
+
+console.log(process.env.PORT)
+console.log(process.env.HOST)
+			
+>node myapp.js
+9090
+example.com
+............................................................................................
+				Set NODE_ENV to “production”
+
+Every express application uses "production" value , to optimize the application.
+
+Cache view templates.
+Cache CSS files generated from CSS extensions.
+Generate less verbose error messages.
+
+Please refer os settings 
+http://upstart.ubuntu.com/cookbook/#environment-variables
+
+.............................................................................................
+				Process Manager
+............................................................................................
+
+Monitoring the Running applications:
+
+-CPU monitoring
+-Memory monitoring
+-network tracffic monitoring
+
+StrongLoop Process Manager
+PM2
+Forever
+
+Scalling the Applications
+ increasing or decreasing no of copies of the applications.
+
+Clusters
+
+load balancers
+...........................................&&&&............................................
+					PM2 -Process Manager 2
+
+-Scalling : Running mulitple copies of the same application  -clusters.
+
+
+start application in cluster mode
+
+pm2 start app.js -i max
+[PM2] Starting c:\session\vodafone\myapp\app.js in cluster_mode (0 instance)
+[PM2] Done.
+⇆ PM2+ activated | Instance Name: LAPTOP-R2TGGFDL-e440 | Dash: https://app.pm2.io/#/r/bizimruz6md00eo
+┌────┬────────────────────┬──────────┬──────┬───────────┬──────────┬──────────┐
+│ id │ name               │ mode     │ ↺    │ status    │ cpu      │ memory   │
+├────┼────────────────────┼──────────┼──────┼───────────┼──────────┼──────────┤
+│ 1  │ app                │ cluster  │ 0    │ online    │ 0%       │ 38.7mb   │
+│ 2  │ app                │ cluster  │ 0    │ online    │ 0%       │ 38.8mb   │
+│ 3  │ app                │ cluster  │ 0    │ online    │ 0%       │ 39.1mb   │
+│ 4  │ app                │ cluster  │ 0    │ online    │ 0%       │ 39.0mb   │
+│ 5  │ app                │ cluster  │ 0    │ online    │ 0%       │ 38.9mb   │
+│ 6  │ app                │ cluster  │ 0    │ online    │ 0%       │ 38.8mb   │
+│ 7  │ app                │ cluster  │ 0    │ online    │ 0%       │ 39.4mb   │
+│ 8  │ app                │ cluster  │ 0    │ online    │ 0%       │ 39.3mb   │
+│ 9  │ app                │ cluster  │ 0    │ online    │ 0%       │ 38.8mb   │
+│ 10 │ app                │ cluster  │ 0    │ online    │ 0%       │ 38.7mb   │
+│ 11 │ app                │ cluster  │ 0    │ online    │ 0%       │ 38.7mb   │
+│ 12 │ app                │ cluster  │ 0    │ online    │ 0%       │ 38.3mb   │
+│ 0  │ index              │ fork     │ 0    │ online    │ 0%       │ 39.0mb   │
+└────┴────────────────────┴──────────┴──────┴───────────┴──────────┴──────────┘
+
+Demonized : background process.
+
+Watching logs for started servers
+
+.............................................................................................
+					Commond line options
+
+
+Max Memory Setting:
+--max-old-space-size=SIZE (in megabytes)#
+Sets the max memory size of V8's old memory section. As memory consumption approaches the limit, V8 will spend more time on garbage collection in an effort to free unused memory.
+
+On a machine with 2 GB of memory, consider setting this to 1536 (1.5 GB) to leave some memory for other uses and avoid swapping.
 
 
 
-
+$ node --max-old-space-size=1536 index.js
