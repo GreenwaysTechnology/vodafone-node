@@ -10,7 +10,7 @@ function sleep(ms) {
 
 app.get('/', (req, res, next) => {
     //block the event loop thread.
-   // sleep(30)
+   sleep(30)
     res.send({})
     next()
 })
